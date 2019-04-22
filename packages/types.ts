@@ -28,6 +28,13 @@ export type PublicKeyMeta = {
   publicKeyPem: PublicKeyPem;
 };
 
+// TODO: Migrate Types
+export type PublicKeyMetadata = {
+  id: string;
+  controller: string;
+  publicKeyPem: PublicKeyPem;
+};
+
 export type PrivateKeyPem = string;
 
 /* Credentials */

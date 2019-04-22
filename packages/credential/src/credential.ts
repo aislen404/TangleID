@@ -1,11 +1,29 @@
 /** @module credential */
+// @ts-ignore
+import * as jsigs from 'jsonld-signatures';
+// @ts-ignore
+import { RSAKeyPair } from 'crypto-ld';
+import { expand } from './jsonld';
+import expansionMap from './expansionMap';
+import { generateDocumentLoader } from './documentLoader';
 import { CREDENTIAL_CONTEXT_URL } from './contexts';
 import {
+  PrivateKeyPem,
+  PublicKeyMetadata,
   CredentialMetadata,
   ContextArray,
   CredentialSubject,
   ContextTypeAlias,
 } from '../../types';
+
+const { RsaSignature2018 } = jsigs.suites;
+const { AssertionProofPurpose } = jsigs.purposes;
+
+export const expandCredential = async (document: any) => {
+  const expanded = await expand(document, { expansionMap });
+
+  return expanded;
+};
 
 type ComposeCredentialParams = {
   subject: CredentialSubject;
@@ -44,4 +62,58 @@ export const generateCredential = ({
   };
 
   return credential;
+};
+
+type SignRsaSignatureParams = {
+  document: any;
+  metadata: PublicKeyMetadata;
+  privateKeyPem: PrivateKeyPem;
+  documentLoader?: any;
+};
+
+export const signRsaSignature = async ({
+  document,
+  metadata,
+  privateKeyPem,
+  documentLoader = generateDocumentLoader(),
+}: SignRsaSignatureParams) => {
+  const publicKey = {
+    '@context': jsigs.SECURITY_CONTEXT_URL,
+    type: 'RsaVerificationKey2018',
+    ...metadata,
+  };
+  const key = new RSAKeyPair({ ...publicKey, privateKeyPem });
+
+  // @ts-ignore
+  const signed = await jsigs.sign(document, {
+    suite: new RsaSignature2018({ key }),
+    purpose: new AssertionProofPurpose(),
+    documentLoader,
+    expansionMap,
+  });
+
+  return signed;
+};
+
+type SignatureOptions = {
+  documentLoader?: any;
+};
+
+export const verifyProof = async (
+  document: any,
+  options: SignatureOptions = {},
+): Promise<boolean> => {
+  const documentLoader = options.documentLoader || generateDocumentLoader();
+
+  // @ts-ignore
+  const result = await jsigs.verify(document, {
+    suite: new RsaSignature2018(),
+    purpose: new AssertionProofPurpose(),
+    expansionMap: false,
+    documentLoader,
+  });
+
+  console.log('result', result);
+
+  return result.verified;
 };
